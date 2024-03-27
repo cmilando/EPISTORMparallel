@@ -95,7 +95,12 @@ run_backnow_parallel <- function(cl, input, MAX_ITER = 2000, n_chains = 3,
   }
 
   # ---------------------------------------------------------
-  ## run these in parallel using future.lapply
+  P <- detectCores(logical = FALSE) ## P = 4
+  cl <- makeCluster(P)
+  clusterEvalQ(cl, {library(linelistBayes)})
+
+  # ---------------------------------------------------------
+  ## run these in parallel
   timestamp(suffix = sprintf(" > %i chains starting", n_chains))
 
   # if caseCounts
@@ -107,23 +112,6 @@ run_backnow_parallel <- function(cl, input, MAX_ITER = 2000, n_chains = 3,
     for(i in 1:n_chains) {
       lineLists[[i]] <- create_linelist(input, ...)
     }
-
-
-    # xx <- future_lapply(1:n_chains, function(i) {
-    #   run_backnow(
-    #     lineLists[[i]], MAX_ITER = MAX_ITER,
-    #     norm_sigma = norm_sigma, sip = sip,
-    #     NB_maxdelay = NB_maxdelay, NB_size = NB_size,
-    #     workerID = i,
-    #     printProgress = printProgress)
-    # })
-    #
-    #
-    # stop("done")
-
-    # clusterExport(cl,c("MAX_ITER",
-    #                    "norm_sigma","sip","NB_maxdelay",
-    #                    "NB_size","printProgress"))
 
     out_list <- clusterApplyLB(cl, 1:n_chains, function(i) {
 
@@ -140,44 +128,79 @@ run_backnow_parallel <- function(cl, input, MAX_ITER = 2000, n_chains = 3,
 
   }
 
-  # # if LineList
-  # if(input_type == 'lineList') {
-  #   stop()
-  #   # this is input.
-  #   caseCounts_line <- input
-  #
-  #   future_backnow <- function(n_chains) {
-  #     chain_seq <- seq(n_chains)
-  #     p <- progressor(along = chain_seq)
-  #     lapply(chain_seq, function(i) {
-  #       p()
-  #       workerID = paste0("w", i)
-  #       # run and export backnow
-  #       backnow(outcome = caseCounts_line$delay_int,
-  #               days = caseCounts_line$report_in,
-  #               week = caseCounts_line$week_in,
-  #               weekend = caseCounts_line$is_weekend,
-  #               iter = MAX_ITER,
-  #               sigma = norm_sigma,
-  #               maxdelay = NB_maxdelay,
-  #               si = sip,
-  #               size = NB_size,
-  #               workerID = workerID,
-  #               printProgress = T)
-  #     }#,
-  #     #future.seed = T,
-  #     #future.packages = c('lubridate', 'tidyverse'),
-  #     #future.globals = c('create_linelist', 'input', 'MAX_ITER', 'sip',
-  #     #                   'backnow', 'norm_sigma', 'NB_maxdelay', 'NB_size')
-  #
-  #     )
-  #   }
-  #
-  # }
+  # if LineList
+  if(input_type == 'lineList') {
 
-  # run in parallel
-  # out_list <- future_backnow(n_chains)
+    # this is input.
+    caseCounts_line <- input
+
+    out_list <- clusterApplyLB(cl, 1:n_chains, function(i) {
+
+      # run and export backnow
+      run_backnow(
+        caseCounts_line, MAX_ITER = MAX_ITER,
+        norm_sigma = norm_sigma, sip = sip,
+        NB_maxdelay = NB_maxdelay, NB_size = NB_size,
+        workerID = i,
+        printProgress = printProgress)
+    })
+
+  }
+
   timestamp(suffix = sprintf(" > %i chains complete", n_chains))
 
-  return(out_list)
+  # -------------------------------------------------------------------------
+
+  ## Now get the mean values across
+  get_row_i <- function(out_i, i, obj) out_i[[obj]][i, ]
+
+  ##
+  est_back_mat_lb <- do.call(rbind, lapply(out_list, get_row_i, i = 1, obj = 'est_back'))
+  est_back_lb <- apply(est_back_mat_lb, MARGIN = 2, mean)
+
+  est_back_mat_med <- do.call(rbind, lapply(out_list, get_row_i, i = 2, obj = 'est_back'))
+  est_back_med <- apply(est_back_mat_med, MARGIN = 2, mean)
+
+  est_back_mat_ub <- do.call(rbind, lapply(out_list, get_row_i, i = 3, obj = 'est_back'))
+  est_back_ub <- apply(est_back_mat_ub, MARGIN = 2, mean)
+
+  est_back <- rbind(est_back_lb, est_back_med, est_back_ub)
+
+  ##
+  est_back_date <- out_list[[1]]$est_back_date
+
+  ##
+  est_rt_mat_lb <- do.call(rbind, lapply(out_list, get_row_i, i = 1, obj = 'est_rt'))
+  est_rt_lb <- apply(est_rt_mat_lb, MARGIN = 2, mean)
+
+  est_rt_mat_med <- do.call(rbind, lapply(out_list, get_row_i, i = 2, obj = 'est_rt'))
+  est_rt_med <- apply(est_rt_mat_med, MARGIN = 2, mean)
+
+  est_rt_mat_ub <- do.call(rbind, lapply(out_list, get_row_i, i = 3, obj = 'est_rt'))
+  est_rt_ub <- apply(est_rt_mat_ub, MARGIN = 2, mean)
+
+  est_rt <- rbind(est_rt_lb, est_rt_med, est_rt_ub)
+
+  ##
+  est_rt_date <- out_list[[1]]$est_rt_date
+
+  ##
+  geweke_back <- do.call(c, lapply(out_list, function(oi) oi$geweke_back))
+
+  geweke_rt <- do.call(c, lapply(out_list, function(oi) oi$geweke_rt))
+
+  return(structure(class = "backnow",
+                   list(est_back      = est_back,
+                        est_back_date = est_back_date,
+                        est_rt        = est_rt,
+                        est_rt_date   = est_rt_date,
+                        geweke_back   = geweke_back,
+                        geweke_rt     = geweke_rt,
+                        report_date   = out_list[[1]]$report_date,
+                        report_cases  = out_list[[1]]$report_cases,
+                        MAX_ITER      = MAX_ITER,
+                        norm_sigma    = norm_sigma,
+                        NB_maxdelay   = NB_maxdelay,
+                        si            = sip,
+                        NB_size       = NB_size)))
 }
