@@ -15,7 +15,7 @@
 #' @import parallel
 #' @import linelistBayes
 #' @examples
-run_backnow_parallel <- function(cl, input, MAX_ITER = 2000, n_chains = 3,
+run_backnow_parallel <- function(input, MAX_ITER = 2000, n_chains = 3,
                         norm_sigma = NULL, sip = NULL,
                         NB_maxdelay = NULL, NB_size = NULL,
                         printProgress = 0, ...) {
@@ -150,6 +150,8 @@ run_backnow_parallel <- function(cl, input, MAX_ITER = 2000, n_chains = 3,
   timestamp(suffix = sprintf(" > %i chains complete", n_chains))
 
   # -------------------------------------------------------------------------
+
+  ## TODO: add convergence checks
 
   ## Now get the mean values across
   get_row_i <- function(out_i, i, obj) out_i[[obj]][i, ]
