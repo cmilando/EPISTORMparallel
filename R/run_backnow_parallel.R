@@ -15,9 +15,10 @@
 #' @import parallel
 #' @import linelistBayes
 #' @examples
-run_backnow_parallel <- function(input, MAX_ITER = 2000, n_chains = 3,
-                        norm_sigma = NULL, sip = NULL,
-                        NB_maxdelay = NULL, NB_size = NULL,
+run_backnow_parallel <- function(input, MAX_ITER,
+                                 n_chains = as.integer(3),
+                        norm_sigma, sip,
+                        NB_maxdelay, NB_size,
                         printProgress = 0, ...) {
 
   # ---------------------------------------------------------
@@ -110,7 +111,12 @@ run_backnow_parallel <- function(input, MAX_ITER = 2000, n_chains = 3,
     lineLists <- vector("list", length = n_chains)
 
     for(i in 1:n_chains) {
-      lineLists[[i]] <- create_linelist(input, ...)
+      lineLists[[i]] <- convert_to_linelist(input, ...)
+      ## stop if there are no NA delay_ints, or if they are all NA
+      which_na <- which(is.na(lineLists[[i]]$delay_int))
+      cond1 <- length(which_na) == 0
+      cond2 <- length(which_na) == nrow(lineLists[[i]])
+      if(cond1 | cond2) stop("delay INTS must have some NA")
     }
 
     out_list <- clusterApplyLB(cl, 1:n_chains, function(i) {
@@ -133,6 +139,12 @@ run_backnow_parallel <- function(input, MAX_ITER = 2000, n_chains = 3,
 
     # this is input.
     caseCounts_line <- input
+    ## stop if there are no NA delay_ints, or if they are all NA
+    ## stop if there are no NA delay_ints, or if they are all NA
+    which_na <- which(is.na(caseCounts_line$delay_int))
+    cond1 <- length(which_na) == 0
+    cond2 <- length(which_na) == nrow(caseCounts_line)
+    if(cond1 | cond2) stop("delay INTS must have some NA")
 
     out_list <- clusterApplyLB(cl, 1:n_chains, function(i) {
 
@@ -186,10 +198,11 @@ run_backnow_parallel <- function(input, MAX_ITER = 2000, n_chains = 3,
   ##
   est_rt_date <- out_list[[1]]$est_rt_date
 
-  ##
-  geweke_back <- do.call(c, lapply(out_list, function(oi) oi$geweke_back))
+  ## dim is n_chains x 1
+  geweke_back <- do.call(rbind, lapply(out_list, function(oi) oi$geweke_back))
 
-  geweke_rt <- do.call(c, lapply(out_list, function(oi) oi$geweke_rt))
+  ## dim is n_chains x 1
+  geweke_rt <- do.call(rbind, lapply(out_list, function(oi) oi$geweke_rt))
 
   return(structure(class = "backnow",
                    list(est_back      = est_back,

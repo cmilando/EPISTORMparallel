@@ -33,5 +33,5 @@ outc <- data.frame(rep(1:80, times = 1),
                    rep(scenarios, each = 80),
                    rep(1, each = 80))
 colnames(outc) <- c("date", "lower", "median", "upper", "epic", "repc", "model", "scenario", "sn")
-saveRDS(outc, "count.rds")
+#saveRDS(outc, "count.rds")
 }

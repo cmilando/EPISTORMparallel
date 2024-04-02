@@ -25,7 +25,7 @@ med <- c(rm11)
 upp <- c(ru11)
 epir <- c(r1, r1)
 repr <- c(rr1, rr1)
-outr <- data.frame(rep(34:80, times = 1),
+outr <- data.frame(rep(34:80, times = 1),   ## 34 is 80 - 47 + 1
                    low, med, upp, epir, repr,
                    rep(type, each = 47, times = 1),
                    rep(scenarios, each = 94),
@@ -34,7 +34,7 @@ outr <- data.frame(rep(34:80, times = 1),
 colnames(outr) <- c("date", "lower", "median", "upper", "epir",
                     "repr", "model", "scenario", "sn")
 
-saveRDS(outr, "rest.rds")
+#saveRDS(outr, "rest.rds")
 
 ## Finish Preprocessing: section 1
 }
