@@ -129,7 +129,7 @@ run_backnow_parallel <- function(input, MAX_ITER,
         norm_sigma = norm_sigma, sip = sip,
         NB_maxdelay = NB_maxdelay, NB_size = NB_size,
         workerID = i,
-        printProgress = printProgress)
+        printProgress = printProgress, preCalcTime = F)
     })
 
   }
@@ -154,7 +154,7 @@ run_backnow_parallel <- function(input, MAX_ITER,
         norm_sigma = norm_sigma, sip = sip,
         NB_maxdelay = NB_maxdelay, NB_size = NB_size,
         workerID = i,
-        printProgress = printProgress)
+        printProgress = printProgress, preCalcTime = F)
     })
 
   }
@@ -162,8 +162,6 @@ run_backnow_parallel <- function(input, MAX_ITER,
   timestamp(suffix = sprintf(" > %i chains complete", n_chains))
 
   # -------------------------------------------------------------------------
-
-  ## TODO: add convergence checks
 
   ## Now get the mean values across
   get_row_i <- function(out_i, i, obj) out_i[[obj]][i, ]
