@@ -55,12 +55,17 @@ funk4 <- function() {
                           printProgress = 1,
                           reportF_missP = 0.6)
 
+  saveRDS(out_list_parallel, "~/Downloads/xx.RDS")
+
   # plot
   plot(out_list_parallel)
 
   # geweke: dim is n_chains x 1
-  1 - apply(out_list_parallel$geweke_back, 2, mean)
-  1 - apply(out_list_parallel$geweke_rt, 2, mean)
+  summary(out_list_parallel$geweke_back)
+  summary(out_list_parallel$geweke_rt)
+
+  1 - apply(out_list_parallel$geweke_back, 2, mean) # 75%
+  1 - apply(out_list_parallel$geweke_rt, 2, mean)   # 71%
 
 
 }
